@@ -1,18 +1,18 @@
 {
-  "name": "native-clipboard",
+  "name": "native-clip",
   "version": "0.1.0",
   "description": "",
   "main": "main.js",
   "scripts": { },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Ne0nWinds/native-clipboard.git"
+    "url": "git+https://github.com/Ne0nWinds/native-clip.git"
   },
   "keywords": [],
   "author": "",
-  "license": "Public Domain",
+  "license": "LicenseRef-LICENSE",
   "bugs": {
-    "url": "https://github.com/Ne0nWinds/native-clipboard/issues"
+    "url": "https://github.com/Ne0nWinds/native-clip/issues"
   },
-  "homepage": "https://github.com/Ne0nWinds/native-clipboard#readme"
+  "homepage": "https://github.com/Ne0nWinds/native-clip#readme"
 }

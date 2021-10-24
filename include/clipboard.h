@@ -1,0 +1,2 @@
+char *PlatformGetClipboard();
+void PlatformCloseClipboard();

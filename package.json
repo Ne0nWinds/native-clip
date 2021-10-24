@@ -1,9 +1,9 @@
 {
   "name": "native-clip",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "main.js",
-  "scripts": { },
+  "scripts": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ne0nWinds/native-clip.git"

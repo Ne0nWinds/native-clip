@@ -19,8 +19,6 @@ napi_value PlatformRead(napi_env env, napi_callback_info info) {
 	return ReturnValue;
 }
 
-static HANDLE Heap;
-
 napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 	napi_value ReturnValue;
 
@@ -38,7 +36,6 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 		size_t BufferSize = 0;
 		napi_get_value_string_utf16(env, argv, NULL, 1, &BufferSize);
 		BufferSize = (BufferSize + 1) * sizeof(char16_t);
-		HANDLE Heap = GetProcessHeap();
 		void *Buffer = GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, BufferSize);
 		GlobalLock(Buffer);
 		size_t BytesRead = 0;
@@ -56,8 +53,4 @@ end:
 	napi_get_null(env, &ReturnValue);
 
 	return ReturnValue;
-}
-
-void PlatformInit() {
-	Heap = HeapCreate(HEAP_NO_SERIALIZE, 0, 0);
 }

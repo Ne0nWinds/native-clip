@@ -5,22 +5,26 @@
 napi_value PlatformRead(napi_env env, napi_callback_info info) {
 	wchar_t *ClipboardData = 0;
 	napi_value ReturnValue;
+	napi_get_null(env, &ReturnValue);
 
 	if (OpenClipboard(NULL)) {
 		ClipboardData = GetClipboardData(CF_UNICODETEXT);
-		GlobalLock(ClipboardData);
-		napi_create_string_utf16(env, ClipboardData, NAPI_AUTO_LENGTH, &ReturnValue);
-		GlobalUnlock(ClipboardData);
+		if (ClipboardData) {
+			GlobalLock(ClipboardData);
+			napi_create_string_utf16(env, ClipboardData, NAPI_AUTO_LENGTH, &ReturnValue);
+			GlobalUnlock(ClipboardData);
+		}
 		CloseClipboard();
-	} else {
-		napi_get_null(env, &ReturnValue);
 	}
 
 	return ReturnValue;
 }
 
+#include <stdio.h>
+
 napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 	napi_value ReturnValue;
+	napi_get_boolean(env, false, &ReturnValue);
 
 	size_t argc = 1;
 	napi_value argv = 0;
@@ -28,29 +32,24 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 
 	if (argc == 0) {
 		napi_throw_error(env, NULL, "Function was called without any arguments");
-		goto end;
+		return ReturnValue;
 	}
 
 	if (OpenClipboard(NULL)) {
-		EmptyClipboard();
 		size_t BufferSize = 0;
 		napi_get_value_string_utf16(env, argv, NULL, 1, &BufferSize);
 		BufferSize = (BufferSize + 1) * sizeof(char16_t);
-		void *Buffer = GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, BufferSize);
-		GlobalLock(Buffer);
+		HGLOBAL hg = GlobalAlloc(GMEM_MOVEABLE, BufferSize);
 		size_t BytesRead = 0;
-		napi_get_value_string_utf16(env, argv, Buffer, BufferSize, &BytesRead);
-		GlobalUnlock(Buffer);
+		napi_get_value_string_utf16(env, argv, GlobalLock(hg), BufferSize, &BytesRead);
+		GlobalUnlock(hg);
 
 		if (BytesRead) {
-			SetClipboardData(CF_UNICODETEXT, Buffer);
+			HANDLE ClipboardData = SetClipboardData(CF_UNICODETEXT, hg);
+			napi_get_boolean(env, ClipboardData != NULL, &ReturnValue);
 		}
-
 		CloseClipboard();
 	}
-
-end:
-	napi_get_null(env, &ReturnValue);
 
 	return ReturnValue;
 }

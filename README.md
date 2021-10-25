@@ -1,6 +1,15 @@
- This is an npm package to read / write from the native OS clipboard
+Read / write from the native OS clipboard in Node.js
 
- Example Usage:
+## Features
+- Simple API usage and Error Handling
+- Fast / Direct OS Calls using C
+- Full Unicode Support (Non-English characters, Emojis, etc.)
+
+## Planned Features
+- Linux, Mac OS, FreeBSD Support
+- Optional TypeScript Definitions
+
+## Example Usage
  ```js
 const clipboard = require("native-clip");
 

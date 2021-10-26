@@ -2,7 +2,7 @@
 #include <X11/Xlib.h>
 #include <stdio.h>
 
-static unsigned char *GetUTF8Property(Display *display, Window w, Atom p) {
+static unsigned char *GetUTF8Property(Display *display, Window w, Atom p, size_t *len) {
 	Atom type;
 	int di;
 	unsigned long size, dul;
@@ -13,7 +13,7 @@ static unsigned char *GetUTF8Property(Display *display, Window w, Atom p) {
 	if (type == INCR) return 0;
 	Atom da;
 	XGetWindowProperty(display, w, p, 0, size, False, AnyPropertyType, &da, &di, &dul, &dul, &prop_ret);
-    printf("%s", prop_ret);
+	*len = size;
 	return prop_ret;
 }
 
@@ -47,7 +47,10 @@ napi_value PlatformRead(napi_env env, napi_callback_info info) {
 			case SelectionNotify: {
 				sev = (XSelectionEvent *)&ev.xselection;
 				if (sev->property != None) {
-					GetUTF8Property(dpy, target_window, target_property);
+					size_t str_len = 0;
+					char *string = GetUTF8Property(dpy, target_window, target_property, &str_len);
+					napi_create_string_utf8(env, string, str_len, &ReturnValue);
+					XFree(string);
 				}
 				return ReturnValue;
 			} break;

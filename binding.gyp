@@ -12,7 +12,8 @@
                     "sources": [ "./src/mac_clipboard.c" ]
                 }],
                 ["OS=='linux'", {
-                    "sources": [ "./src/linux_clipboard.c" ]
+                    "sources": [ "./src/linux_clipboard.c" ],
+                    "libraries": [ "-lX11" ]
                 }],
                 ["OS=='freebsd'", {
                     "sources": [ "./src/freebsd_clipboard.c" ]

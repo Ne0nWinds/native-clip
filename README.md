@@ -4,10 +4,10 @@ Read / write from the native OS clipboard in Node.js
 - Simple API usage and Error Handling
 - Fast / Direct OS Calls using C
 - Full Unicode Support (Non-English characters, Emojis, etc.)
+- Optional TypeScript Definitions
 
 ## Planned Features
 - Linux, Mac OS, FreeBSD Support
-- Optional TypeScript Definitions
 
 ## Example Usage
  ```js

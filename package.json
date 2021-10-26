@@ -1,6 +1,6 @@
 {
   "name": "native-clip",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "",
   "main": "main.js",
   "scripts": {},
@@ -8,7 +8,14 @@
     "type": "git",
     "url": "git+https://github.com/Ne0nWinds/native-clip.git"
   },
-  "keywords": [],
+  "keywords": [
+    "clipboard",
+    "copy",
+    "paste",
+    "copy-paste",
+    "windows",
+    "win32"
+  ],
   "author": "",
   "license": "Unlicense",
   "bugs": {

@@ -1,4 +1,4 @@
-Read / write from the native OS clipboard in Node.js
+Read / Write from the native OS clipboard in Node.js
 
 ## Features
 - Simple API usage and Error Handling

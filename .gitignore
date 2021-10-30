@@ -2,3 +2,4 @@ build/
 compile_flags.txt
 node_modules/
 package-lock.json
+*swp

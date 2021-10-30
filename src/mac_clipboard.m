@@ -10,9 +10,10 @@ napi_value PlatformRead(napi_env env, napi_callback_info info) {
 	NSPasteboard *Clipboard = [NSPasteboard generalPasteboard];
 	NSString *ClipboardDataNSString = [Clipboard stringForType:NSStringPboardType];
 
-	const char *ClipboardData = [ClipboardDataNSString UTF8String];
-		
-	napi_create_string_utf8(env, ClipboardData, NAPI_AUTO_LENGTH, &ReturnValue);
+	if (ClipboardDataNSString != nil && [ClipboardDataNSString length] > 0) {
+		const char *ClipboardData = [ClipboardDataNSString UTF8String];
+		napi_create_string_utf8(env, ClipboardData, NAPI_AUTO_LENGTH, &ReturnValue);
+	}
 
 	return ReturnValue;
 }
@@ -32,6 +33,7 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 
 	size_t BufferSize = 0;
 	napi_get_value_string_utf8(env, argv, NULL, 1, &BufferSize);
+	if (!BufferSize) return ReturnValue;
 	++BufferSize;
 	char *Buffer = calloc(BufferSize, sizeof(char));
 	size_t BytesRead = 0;

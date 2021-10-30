@@ -7,6 +7,13 @@ napi_value PlatformRead(napi_env env, napi_callback_info info) {
 	napi_value ReturnValue;
 	napi_get_null(env, &ReturnValue);
 
+	NSPasteboard *Clipboard = [NSPasteboard generalPasteboard];
+	NSString *ClipboardDataNSString = [Clipboard stringForType:NSStringPboardType];
+
+	const char *ClipboardData = [ClipboardDataNSString UTF8String];
+		
+	napi_create_string_utf8(env, ClipboardData, NAPI_AUTO_LENGTH, &ReturnValue);
+
 	return ReturnValue;
 }
 
@@ -32,10 +39,10 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 
 	NSPasteboard *Clipboard = [NSPasteboard generalPasteboard];
 	[Clipboard clearContents];
-	NSString *MacString = [[NSString alloc] initWithBytesNoCopy:(void *)Buffer length: BytesRead encoding:NSUTF8StringEncoding freeWhenDone:FALSE];
+	NSString *NewClipboardData = [[NSString alloc] initWithBytesNoCopy:(void *)Buffer length: BytesRead encoding:NSUTF8StringEncoding freeWhenDone:FALSE];
 
 	@try {
-		BOOL result = [Clipboard setString:MacString forType:NSStringPboardType];
+		BOOL result = [Clipboard setString:NewClipboardData forType:NSStringPboardType];
 		napi_get_boolean(env, result == YES, &ReturnValue);
 	}
 	@catch (NSException *exception) { }

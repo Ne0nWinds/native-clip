@@ -1,64 +1,115 @@
 #include "clipboard.h"
 #include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <limits.h>
 
-static char *GetUTF8Property(Display *display, Window w, Atom p, size_t *len) {
-	Atom type;
-	int di;
-	unsigned long size, dul;
-	unsigned char *prop_ret = 0;
-	XGetWindowProperty(display, w, p, 0, 0, False, AnyPropertyType, &type, &di, &dul, &size, &prop_ret);
-	XFree(prop_ret);
-	Atom INCR = XInternAtom(display, "INCR", False);
-	if (type == INCR) return 0;
-	Atom da;
-	XGetWindowProperty(display, w, p, 0, size, False, AnyPropertyType, &da, &di, &dul, &dul, &prop_ret);
-	*len = size;
-	return (char *)prop_ret;
+typedef enum {
+	ATOM_UTF8 = 0,
+	ATOM_XASTRING,
+	ATOM_CLIPBOARD,
+    ATOM_NATIVE_CLIP,
+	ATOM_ARRAY_LENGTH
+} AtomConstantIndex;
+
+static Atom AtomConstants[ATOM_ARRAY_LENGTH] = {};
+
+static Display *X11Display;
+static Window X11WindowHandle;
+static char *CurrentClipboardString = NULL;
+static size_t ClipboardStringLength = 0;
+static bool isUTF8 = false;
+
+void PlatformInit() {
+	X11Display = XOpenDisplay(NULL);
+	if (!X11Display) return;
+	AtomConstants[ATOM_UTF8] = XInternAtom(X11Display, "UTF8_STRING", 0);
+	AtomConstants[ATOM_XASTRING] = XA_STRING;
+	AtomConstants[ATOM_CLIPBOARD] = XInternAtom(X11Display, "CLIPBOARD", 0);
+    AtomConstants[ATOM_NATIVE_CLIP] = XInternAtom(X11Display, "NATIVE_CLIP", 0);
+
+    Window root = RootWindow(X11Display, DefaultScreen(X11Display));
+    X11WindowHandle = XCreateSimpleWindow(X11Display, root, -10, -10, 1, 1, 0, 0, 0);
+}
+
+static int IsClipboardEvent(Display *Dpy, XEvent *Event, XPointer Pointer) {
+    bool result = Event->type &&
+        Event->xproperty.state == PropertyNewValue &&
+        Event->xproperty.window == ((XEvent *)Pointer)->xselection.requestor &&
+        Event->xproperty.atom == ((XEvent *)Pointer)->xselection.property;
+    return result;
+}
+
+void SetClipboardString(AtomConstantIndex EncodingIndex) {
+    Atom Encoding = AtomConstants[EncodingIndex];
+    XConvertSelection(X11Display, AtomConstants[ATOM_CLIPBOARD], Encoding, AtomConstants[ATOM_NATIVE_CLIP], X11WindowHandle, CurrentTime);
+
+    XEvent Event = {0};
+    while (!XCheckTypedWindowEvent(X11Display, X11WindowHandle, SelectionNotify, &Event)) usleep(0);
+
+    if (Event.xselection.property == None) return;
+
+    XEvent NullEvent;
+    XCheckIfEvent(X11Display, &NullEvent, IsClipboardEvent, (void *)&Event);
+
+    unsigned long Count = 0;
+    int Format = 0;
+    Atom Type = {0};
+    unsigned long ExtraBytes = 0;
+    char *data = 0;
+    XGetWindowProperty(X11Display,
+            Event.xselection.requestor,
+            Event.xselection.property,
+            0, LONG_MAX, True, AnyPropertyType,
+            &Type, &Format, &Count, &ExtraBytes, (unsigned char **)&data);
+
+    if (Type == Encoding)
+    {
+        isUTF8 = Encoding == AtomConstants[ATOM_UTF8];
+        ClipboardStringLength = strlen(data);
+        CurrentClipboardString = calloc(ClipboardStringLength + 1, sizeof(char));
+        memcpy(CurrentClipboardString, data, ClipboardStringLength);
+    }
+
+    XFree(data);
+
 }
 
 napi_value PlatformRead(napi_env env, napi_callback_info info) {
 	napi_value ReturnValue;
 	napi_get_null(env, &ReturnValue);
 
-	Display *dpy = XOpenDisplay(NULL);
-	if (!dpy) return ReturnValue;
+    if (!X11Display) return ReturnValue;
 
-	int screen = DefaultScreen(dpy);
-	Window root = RootWindow(dpy, screen);
+	Window ClipboardOwner = XGetSelectionOwner(X11Display, AtomConstants[ATOM_CLIPBOARD]);
+    if (ClipboardOwner == None || X11WindowHandle == ClipboardOwner) {
+        if (isUTF8)
+            napi_create_string_utf8(env, CurrentClipboardString, ClipboardStringLength, &ReturnValue);
+        else
+            napi_create_string_latin1(env, CurrentClipboardString, ClipboardStringLength, &ReturnValue);
+        return ReturnValue;
+    }
 
-	Atom sel, utf8;
-	sel = XInternAtom(dpy, "CLIPBOARD", False);
-	utf8 = XInternAtom(dpy, "UTF8_STRING", False);
+    if (CurrentClipboardString) {
+        free(CurrentClipboardString);
+        CurrentClipboardString = NULL;
+        ClipboardStringLength = 0;
+    }
 
-	Window owner = XGetSelectionOwner(dpy, sel);
-	if (owner == None) return ReturnValue;
+    SetClipboardString(ATOM_UTF8);
 
-	Window target_window = XCreateSimpleWindow(dpy, root, -10, -10, 1, 1, 0, 0, 0);
+    if (!CurrentClipboardString)
+        SetClipboardString(ATOM_XASTRING);
 
-	Atom target_property = XInternAtom(dpy, "AUTO", False);
-	XConvertSelection(dpy, sel, utf8, target_property, target_window, CurrentTime);
-
-	XEvent ev;
-	XSelectionEvent *sev;
-	for (;;)
-	{
-		XNextEvent(dpy, &ev);
-		switch (ev.type)
-		{
-			case SelectionNotify: {
-				sev = (XSelectionEvent *)&ev.xselection;
-				if (sev->property != None) {
-					size_t str_len = 0;
-					char *string = GetUTF8Property(dpy, target_window, target_property, &str_len);
-					if (str_len)
-						napi_create_string_utf8(env, string, str_len, &ReturnValue);
-					XFree(string);
-				}
-				return ReturnValue;
-			} break;
-		}
-	}
+    if (CurrentClipboardString) {
+        if (isUTF8)
+            napi_create_string_utf8(env, CurrentClipboardString, ClipboardStringLength, &ReturnValue);
+        else
+            napi_create_string_latin1(env, CurrentClipboardString, ClipboardStringLength, &ReturnValue);
+    }
 
 	return ReturnValue;
 }

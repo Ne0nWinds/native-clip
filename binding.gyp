@@ -13,7 +13,7 @@
                 }],
                 ["OS=='linux'", {
                     "sources": [ "./src/linux_clipboard.c" ],
-                    "libraries": [ "-lX11" ]
+                    "libraries": [ "-lX11" ],
                 }],
                 ["OS=='freebsd'", {
                     "sources": [ "./src/freebsd_clipboard.c" ]

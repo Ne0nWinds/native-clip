@@ -2,6 +2,8 @@
 #include <node_api.h>
 
 napi_value Init(napi_env env, napi_value exports) {
+	PlatformInit();
+
 	napi_value fn;
 
 	napi_create_function(env, NULL, 0, PlatformRead, NULL, &fn);

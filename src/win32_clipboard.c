@@ -36,6 +36,7 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 	if (OpenClipboard(NULL)) {
 		size_t BufferSize = 0;
 		napi_get_value_string_utf16(env, argv, NULL, 1, &BufferSize);
+		if (!BufferSize) return ReturnValue;
 		BufferSize = (BufferSize + 1) * sizeof(char16_t);
 		HGLOBAL hg = GlobalAlloc(GMEM_MOVEABLE, BufferSize);
 		size_t BytesRead = 0;

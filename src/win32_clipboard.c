@@ -20,8 +20,6 @@ napi_value PlatformRead(napi_env env, napi_callback_info info) {
 	return ReturnValue;
 }
 
-#include <stdio.h>
-
 napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 	napi_value ReturnValue;
 	napi_get_boolean(env, false, &ReturnValue);

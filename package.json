@@ -1,6 +1,6 @@
 {
   "name": "native-clip",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "",
   "main": "main.js",
   "scripts": {},
@@ -14,7 +14,10 @@
     "paste",
     "copy-paste",
     "windows",
-    "win32"
+    "win32",
+    "macos",
+    "linux",
+    "C99"
   ],
   "author": "",
   "license": "Unlicense",

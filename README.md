@@ -6,9 +6,11 @@ Read / Write from the native OS clipboard in Node.js
 - Full Unicode Support (Non-English characters, Emojis, etc.)
 - Optional TypeScript Definitions
 - Windows and Mac OS support
+- Linux support (should work, but needs more testing)
 
 ## Planned Features
-- Linux, FreeBSD Support
+- Support for FreeBSD, OpenBSD+
+- More Optimization
 
 ## Example Usage
  ```js

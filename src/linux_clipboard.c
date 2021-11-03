@@ -153,9 +153,11 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 		goto end;
 	}
 
+	XConvertSelection(X11Display, AtomConstants[ATOM_CLIPBOARD_MANAGER], AtomConstants[ATOM_SAVE_TARGETS], None, X11WindowHandle, CurrentTime);
+
 	bool HasUploaded = false, SavedTargets = false;
 
-	for (int i = 0; i < 1000; ++i)
+	for (int i = 0; i < 1000 || (!HasUploaded && !SavedTargets); ++i)
 	{
 		XEvent Event = {0};
 
@@ -191,8 +193,6 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 						ClipboardData = calloc(ClipboardLength, sizeof(char));
 						napi_get_value_string_utf8(env, argv, ClipboardData, ClipboardLength, &ClipboardLength);
 						XChangeProperty(X11Display, SelectionRequestEvent->requestor, SelectionRequestEvent->property, AtomConstants[ATOM_UTF8], 8, PropModeReplace, (const unsigned char *)ClipboardData, strlen(ClipboardData));
-						if (!HasUploaded)
-							XConvertSelection(X11Display, AtomConstants[ATOM_CLIPBOARD_MANAGER], AtomConstants[ATOM_SAVE_TARGETS], None, X11WindowHandle, CurrentTime);
 						HasUploaded = true;
 					} else if (SelectionRequestEvent->target == AtomConstants[ATOM_XASTRING]) {
 						size_t ClipboardLength = 0;
@@ -201,8 +201,6 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 						ClipboardData = calloc(ClipboardLength, sizeof(char));
 						napi_get_value_string_latin1(env, argv, ClipboardData, ClipboardLength, &ClipboardLength);
 						XChangeProperty(X11Display, SelectionRequestEvent->requestor, SelectionRequestEvent->property, AtomConstants[ATOM_XASTRING], 8, PropModeReplace, (const unsigned char *)ClipboardData, strlen(ClipboardData));
-						if (!HasUploaded)
-							XConvertSelection(X11Display, AtomConstants[ATOM_CLIPBOARD_MANAGER], AtomConstants[ATOM_SAVE_TARGETS], None, X11WindowHandle, CurrentTime);
 						HasUploaded = true;
 					} else {
 						EventToSend.property = None;
@@ -221,8 +219,6 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 					if (Event.xselection.target == AtomConstants[ATOM_SAVE_TARGETS])
 					{
 						SavedTargets = true;
-						if (HasUploaded)
-							goto end;
 					}
 
 					break;

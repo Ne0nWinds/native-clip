@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <time.h>
+#include <stdio.h>
 
 #define len(arr) (sizeof(arr) / sizeof(*arr))
 
@@ -63,7 +64,6 @@ static int IsClipboardEventType(Display *Dpy, XEvent *Event, XPointer Pointer) {
 	return Event->type == SelectionRequest || Event->type == SelectionNotify || Event->type == SelectionClear;
 }
 
-static bool isUTF8 = true;
 static size_t ClipboardStringLength;
 static void SetClipboardString(AtomConstantIndex EncodingIndex, char **ClipboardString) {
 	Atom Encoding = AtomConstants[EncodingIndex];
@@ -88,16 +88,11 @@ static void SetClipboardString(AtomConstantIndex EncodingIndex, char **Clipboard
 	Atom Type = {0};
 	unsigned long ExtraBytes = 0;
 	char *data = 0;
-	XGetWindowProperty(X11Display,
-			Event.xselection.requestor,
-			Event.xselection.property,
-			0, LONG_MAX, True, AnyPropertyType,
-			&Type, &Format, &Count, &ExtraBytes, (unsigned char **)&data);
+	int result = XGetWindowProperty(X11Display, Event.xselection.requestor, Event.xselection.property, 0, LONG_MAX, True, AnyPropertyType, &Type, &Format, &Count, &ExtraBytes, (unsigned char **)&data);
 
-	if (Type == Encoding)
+	if (Type == Encoding && result == Success)
 	{
-		isUTF8 = Encoding == AtomConstants[ATOM_UTF8];
-		ClipboardStringLength = strlen(data);
+		ClipboardStringLength = Count;
 		*ClipboardString = data;
 	}
 }
@@ -111,18 +106,17 @@ napi_value PlatformRead(napi_env env, napi_callback_info info) {
 
 	char *ClipboardString = NULL;
 	ClipboardStringLength = 0;
-	isUTF8 = true;
 
 	SetClipboardString(ATOM_UTF8, &ClipboardString);
-
-	if (!ClipboardString)
-		SetClipboardString(ATOM_XASTRING, &ClipboardString);
-
 	if (ClipboardString) {
-		if (isUTF8)
-			napi_create_string_utf8(env, ClipboardString, ClipboardStringLength, &ReturnValue);
-		else
-			napi_create_string_latin1(env, ClipboardString, ClipboardStringLength, &ReturnValue);
+		napi_create_string_utf8(env, ClipboardString, ClipboardStringLength, &ReturnValue);
+		XFree(ClipboardString);
+		goto end;
+	}
+
+	SetClipboardString(ATOM_XASTRING, &ClipboardString);
+	if (ClipboardString) {
+		napi_create_string_latin1(env, ClipboardString, ClipboardStringLength, &ReturnValue);
 		XFree(ClipboardString);
 	}
 
@@ -153,9 +147,11 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 		goto end;
 	}
 
+	XConvertSelection(X11Display, AtomConstants[ATOM_CLIPBOARD_MANAGER], AtomConstants[ATOM_SAVE_TARGETS], None, X11WindowHandle, CurrentTime);
+
 	bool HasUploaded = false, SavedTargets = false;
 
-	for (int i = 0; i < 1000; ++i)
+	for (int i = 0; i < 1000 || (!HasUploaded && !SavedTargets); ++i)
 	{
 		XEvent Event = {0};
 
@@ -191,8 +187,6 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 						ClipboardData = calloc(ClipboardLength, sizeof(char));
 						napi_get_value_string_utf8(env, argv, ClipboardData, ClipboardLength, &ClipboardLength);
 						XChangeProperty(X11Display, SelectionRequestEvent->requestor, SelectionRequestEvent->property, AtomConstants[ATOM_UTF8], 8, PropModeReplace, (const unsigned char *)ClipboardData, strlen(ClipboardData));
-						if (!HasUploaded)
-							XConvertSelection(X11Display, AtomConstants[ATOM_CLIPBOARD_MANAGER], AtomConstants[ATOM_SAVE_TARGETS], None, X11WindowHandle, CurrentTime);
 						HasUploaded = true;
 					} else if (SelectionRequestEvent->target == AtomConstants[ATOM_XASTRING]) {
 						size_t ClipboardLength = 0;
@@ -201,14 +195,12 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 						ClipboardData = calloc(ClipboardLength, sizeof(char));
 						napi_get_value_string_latin1(env, argv, ClipboardData, ClipboardLength, &ClipboardLength);
 						XChangeProperty(X11Display, SelectionRequestEvent->requestor, SelectionRequestEvent->property, AtomConstants[ATOM_XASTRING], 8, PropModeReplace, (const unsigned char *)ClipboardData, strlen(ClipboardData));
-						if (!HasUploaded)
-							XConvertSelection(X11Display, AtomConstants[ATOM_CLIPBOARD_MANAGER], AtomConstants[ATOM_SAVE_TARGETS], None, X11WindowHandle, CurrentTime);
 						HasUploaded = true;
 					} else {
 						EventToSend.property = None;
 					}
 
-					XSendEvent(X11Display, SelectionRequestEvent->requestor, False, 0, (XEvent *)&EventToSend);
+					int result = XSendEvent(X11Display, SelectionRequestEvent->requestor, False, 0, (XEvent *)&EventToSend);
 					if (ClipboardData) free(ClipboardData);
 				} break;
 
@@ -221,8 +213,6 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 					if (Event.xselection.target == AtomConstants[ATOM_SAVE_TARGETS])
 					{
 						SavedTargets = true;
-						if (HasUploaded)
-							goto end;
 					}
 
 					break;

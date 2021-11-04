@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <limits.h>
 #include <time.h>
-#include <stdio.h>
 
 #define len(arr) (sizeof(arr) / sizeof(*arr))
 
@@ -151,7 +150,7 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 
 	bool HasUploaded = false, SavedTargets = false;
 
-	for (int i = 0; i < 1000 || (!HasUploaded && !SavedTargets); ++i)
+	for (int i; i < 1000 && !(HasUploaded && SavedTargets); ++i)
 	{
 		XEvent Event = {0};
 
@@ -176,6 +175,7 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 					if (SelectionRequestEvent->target == AtomConstants[ATOM_TARGETS]) {
 						const Atom targets[] = {
 							AtomConstants[ATOM_TARGETS],
+							AtomConstants[ATOM_SAVE_TARGETS],
 							AtomConstants[ATOM_UTF8],
 							AtomConstants[ATOM_XASTRING]
 						};

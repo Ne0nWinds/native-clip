@@ -9,6 +9,14 @@
 
 #define len(arr) (sizeof(arr) / sizeof(*arr))
 
+#if defined(__GNUC__) || defined(__clang__)
+#define likely(a) __builtin_expect(!!(a), 1)
+#define unlikely(a) __builtin_expect(!!(a), 0)
+#else
+#define likely(a) (a)
+#define unlikely(a) (a)
+#endif
+
 typedef enum {
 	ATOM_UTF8 = 0,
 	ATOM_XASTRING,
@@ -27,7 +35,7 @@ static Window X11WindowHandle;
 
 static bool X11Init() {
 	X11Display = XOpenDisplay(NULL);
-	if (!X11Display) return false;
+	if (unlikely(!X11Display)) return false;
 	AtomConstants[ATOM_UTF8] = XInternAtom(X11Display, "UTF8_STRING", 0);
 	AtomConstants[ATOM_XASTRING] = XA_STRING;
 	AtomConstants[ATOM_CLIPBOARD] = XInternAtom(X11Display, "CLIPBOARD", 0);
@@ -75,9 +83,9 @@ static void SetClipboardString(AtomConstantIndex EncodingIndex, char **Clipboard
 		usleep(0);
 		++i;
 	}
-	if (i == MaxWindowEventChecks) return;
+	if (unlikely(i == MaxWindowEventChecks)) return;
 
-	if (Event.xselection.property == None) return;
+	if (unlikely(Event.xselection.property == None)) return;
 
 	XEvent NullEvent;
 	XCheckIfEvent(X11Display, &NullEvent, IsClipboardEvent, (void *)&Event);
@@ -100,7 +108,7 @@ napi_value PlatformRead(napi_env env, napi_callback_info info) {
 	napi_value ReturnValue;
 	napi_get_null(env, &ReturnValue);
 
-	if (!X11Init())
+	if (unlikely(!X11Init()))
 		goto end;
 
 	char *ClipboardString = NULL;
@@ -139,12 +147,12 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 
 	bool HasUploaded = false, SavedTargets = false;
 
-	if (!X11Init()) goto end;
+	if (unlikely(!X11Init())) goto end;
 
 	XSetSelectionOwner(X11Display, AtomConstants[ATOM_CLIPBOARD], X11WindowHandle, CurrentTime);
 
 	Window ClipboardOwner = XGetSelectionOwner(X11Display, AtomConstants[ATOM_CLIPBOARD]);
-	if (ClipboardOwner == None || X11WindowHandle != ClipboardOwner) {
+	if (unlikely(ClipboardOwner == None || X11WindowHandle != ClipboardOwner)) {
 		goto end;
 	}
 
@@ -187,7 +195,7 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 						ClipboardLength += 1;
 						ClipboardData = calloc(ClipboardLength, sizeof(char));
 						napi_get_value_string_utf8(env, argv, ClipboardData, ClipboardLength, &ClipboardLength);
-						XChangeProperty(X11Display, SelectionRequestEvent->requestor, SelectionRequestEvent->property, AtomConstants[ATOM_UTF8], 8, PropModeReplace, (const unsigned char *)ClipboardData, strlen(ClipboardData));
+						XChangeProperty(X11Display, SelectionRequestEvent->requestor, SelectionRequestEvent->property, AtomConstants[ATOM_UTF8], 8, PropModeReplace, (const unsigned char *)ClipboardData, ClipboardLength);
 						HasUploaded = true;
 					} else if (SelectionRequestEvent->target == AtomConstants[ATOM_XASTRING]) {
 						size_t ClipboardLength = 0;
@@ -195,13 +203,13 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 						ClipboardLength += 1;
 						ClipboardData = calloc(ClipboardLength, sizeof(char));
 						napi_get_value_string_latin1(env, argv, ClipboardData, ClipboardLength, &ClipboardLength);
-						XChangeProperty(X11Display, SelectionRequestEvent->requestor, SelectionRequestEvent->property, AtomConstants[ATOM_XASTRING], 8, PropModeReplace, (const unsigned char *)ClipboardData, strlen(ClipboardData));
+						XChangeProperty(X11Display, SelectionRequestEvent->requestor, SelectionRequestEvent->property, AtomConstants[ATOM_XASTRING], 8, PropModeReplace, (const unsigned char *)ClipboardData, ClipboardLength);
 						HasUploaded = true;
 					} else {
 						EventToSend.property = None;
 					}
 
-					int result = XSendEvent(X11Display, SelectionRequestEvent->requestor, False, 0, (XEvent *)&EventToSend);
+					XSendEvent(X11Display, SelectionRequestEvent->requestor, False, 0, (XEvent *)&EventToSend);
 					if (ClipboardData) free(ClipboardData);
 				} break;
 

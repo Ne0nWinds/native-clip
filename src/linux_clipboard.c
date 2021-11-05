@@ -137,6 +137,8 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 		return ReturnValue;
 	}
 
+	bool HasUploaded = false, SavedTargets = false;
+
 	if (!X11Init()) goto end;
 
 	XSetSelectionOwner(X11Display, AtomConstants[ATOM_CLIPBOARD], X11WindowHandle, CurrentTime);
@@ -148,11 +150,10 @@ napi_value PlatformWrite(napi_env env, napi_callback_info info) {
 
 	XConvertSelection(X11Display, AtomConstants[ATOM_CLIPBOARD_MANAGER], AtomConstants[ATOM_SAVE_TARGETS], None, X11WindowHandle, CurrentTime);
 
-	bool HasUploaded = false, SavedTargets = false;
+	XEvent Event = {0};
 
-	for (int i; i < 1000 && !(HasUploaded && SavedTargets); ++i)
+	for (int i = 0; i < 1000 && !(HasUploaded && SavedTargets); ++i)
 	{
-		XEvent Event = {0};
 
 		while (XCheckIfEvent(X11Display, &Event, IsClipboardEventType, NULL))
 		{
